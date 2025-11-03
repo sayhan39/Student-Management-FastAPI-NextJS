@@ -2,7 +2,7 @@ import json
 from typing import Any, List, Optional
 
 from sqlalchemy.orm import Mapped
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import BLOB, Column, Field, Relationship, SQLModel
 
 from src.models.audit_model import AuditModel
 from src.models.user import UserBase
@@ -56,4 +56,19 @@ class Medium(AuditModel, table=True):
     id: Optional[int] = Field(None, primary_key=True)
     name: str = Field(unique=True, index=True)
     value: str = Field(unique=True, index=True)
+
+class Content(AuditModel, table=True):
+    id: Optional[int] = Field(None, primary_key=True)
+    title: Optional[str] = Field("<UNKNOWN>")
+    file_type: Optional[str] = Field("<UNKNOWN>")
+    author: Optional[str] = Field()
+    file_data: bytes = Field(default=None, sa_column=Column(BLOB))
+
+class ClassContent(SQLModel, table=True):
+    class_level: Optional[str] = Field(default = None, primary_key = True, foreign_key = "classlevel.value")
+    content_id: Optional[int] = Field(default = None, primary_key = True, foreign_key = "content.id")
+
+class CourseContent(SQLModel, table=True):
+    course_code: Optional[str] = Field(default = None, primary_key = True, foreign_key = "course.course_code")
+    content_id: Optional[int] = Field(default = None, primary_key = True, foreign_key = "content.id")
 
