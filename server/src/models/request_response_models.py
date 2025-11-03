@@ -5,7 +5,7 @@ from sqlmodel import SQLModel
 from typing import Dict, List, Optional
 
 from src.models.token import Token
-from src.models.db_models import Course, Performance, Student
+from src.models.db_models import ClassContent, Content, Course, CourseContent, Performance, Student
 
 class BaseRequestResponse(SQLModel):
     message: str = ""
@@ -77,4 +77,41 @@ class StudentListDetail(BaseModel):
 class StudentListResponse(BaseRequestResponse):
     page_count: Optional[int]
     students: Optional[list[StudentListDetail]]
+
+'''
+class Content(AuditModel, table=True):
+    id: Optional[int] = Field(None, primary_key=True)
+    title: Optional[str] = Field("<UNKNOWN>")
+    file_type: Optional[str] = Field("<UNKNOWN>")
+    author: Optional[str] = Field()
+    file_path: Optional[str] = Field(nullable=False)
+
+class ClassContent(SQLModel, table=True):
+    class_level: Optional[str] = Field(default = None, primary_key = True, foreign_key = "classlevel.value")
+    content_id: Optional[int] = Field(default = None, primary_key = True, foreign_key = "course.id")
+
+class CourseContent(SQLModel, table=True):
+    course_code: Optional[str] = Field(default = None, primary_key = True, foreign_key = "course.course_code")
+    content_id: Optional[int] = Field(default = None, primary_key = True, foreign_key = "content.id")
+'''
+
+class ContentMetadataResponse(BaseRequestResponse):
+    id: int
+    title: Optional[str]
+    file_type: Optional[str]
+    author: Optional[str]
+    created_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+class AddContentRequest(BaseRequestResponse):
+    title: Optional[str]
+    file_type: Optional[str]
+    author: Optional[str]
+    class_level: Optional[str]
+    course_code: Optional[str]
+
+class AddContentResponse(BaseRequestResponse):
+    content: ContentMetadataResponse
+    class_link: Optional[ClassContent] = None
+    course_link: Optional[CourseContent] = None
 
