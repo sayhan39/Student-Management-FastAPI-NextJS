@@ -125,21 +125,18 @@ const convertResponseToStudentList = (objects: Student[]) => {
     return studentList;
 }
 
-const convertResponseToStudent = (objects: Student[]) => {
-    let fetchedStudent: StudentListDetail = { id: -1 }
-    objects.forEach((obj: Student) => {
-        fetchedStudent = {
-            id:         obj.id,
-            name:       obj.name,
-            roll:       obj.roll,
-            level:      obj.level,
-            section:    obj.section,
-            medium:     obj.medium,
-            user_id:    obj.user_id,
-            updated_at: obj.updated_at,
-            updated_by: obj.updated_by
-        };
-    });
+const convertResponseToStudent = (object: Student) => {
+    let fetchedStudent = {
+        id:         object.id,
+        name:       object.name,
+        roll:       object.roll,
+        level:      object.level,
+        section:    object.section,
+        medium:     object.medium,
+        user_id:    object.user_id,
+        updated_at: object.updated_at,
+        updated_by: object.updated_by
+    };
     return fetchedStudent;
 }
 
@@ -161,8 +158,8 @@ const fetchStudentById = async(studentId: string,
         } else {
             const responseClone = response.clone();
             const responseText = await responseClone.text();
-            const objects: Student[] = JSON.parse(responseText);
-            const fetchedStudent = convertResponseToStudent(objects);
+            const object: Student = JSON.parse(responseText);
+            const fetchedStudent = convertResponseToStudent(object);
             if(setSelectedStudent) {
                 setSelectedStudent(fetchedStudent);
             }

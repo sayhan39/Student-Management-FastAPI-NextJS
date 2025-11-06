@@ -5,6 +5,7 @@ import { StudentContextProvider } from "./contexts/student-context";
 import Footer from "./footer/page";
 import { AuthContextProvider } from "./contexts/auth-context";
 import { CourseContextProvider } from "./contexts/course-context";
+import { ContentContextProvider } from "./contexts/content-context";
 
 export const metadata: Metadata = {
 	title: "Student Management App",
@@ -22,6 +23,7 @@ export default function RootLayout({
 				<AuthContextProvider>
 					<StudentContextProvider>
 						<CourseContextProvider>
+							<ContentContextProvider>
 								<div className="flex flex-col h-full py-5 w-full max-w-7xl">
 									<Header />
 									<div className={`bg-surface flex-grow overflow-y-auto`}>
@@ -29,8 +31,9 @@ export default function RootLayout({
 									</div>
 									<Footer />
 								</div>
-							</CourseContextProvider>
-						</StudentContextProvider>
+							</ContentContextProvider>
+						</CourseContextProvider>
+					</StudentContextProvider>
 				</AuthContextProvider>
 			</body>
 		</html>

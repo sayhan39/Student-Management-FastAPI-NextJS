@@ -26,6 +26,11 @@ const Header = () => {
             linkName: "Courses",
             linkUrl: "/course-list",
             roles: ["A"]
+        },
+        {
+            linkName: "Contents",
+            linkUrl: "/contents",
+            roles: ["A", "S"]
         }
     ]
 

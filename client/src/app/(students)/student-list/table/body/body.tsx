@@ -1,4 +1,3 @@
-import { Student } from "@/app/contexts/student-context";
 import TableRow from "../row/row";
 import { StudentListDetail } from "@/app/(students)/students";
 

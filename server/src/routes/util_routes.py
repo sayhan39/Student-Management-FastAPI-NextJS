@@ -24,3 +24,7 @@ def get_levels(*, session: Session = Depends(get_session)) -> list[list[Dict[str
         mediums_list,
     ]
 
+@router.get("/get-all-classes")
+def get_class_levels(*, session: Session = Depends(get_session)) -> list[str]:
+    return util_service.get_all_class_levels(session)
+
