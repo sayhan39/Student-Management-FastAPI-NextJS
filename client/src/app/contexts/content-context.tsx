@@ -1,20 +1,20 @@
 "use client"
 
 import { createContext, ReactNode, useContext, useState } from "react";
-import { ContentMetadata, TextContent } from "../(contents)/content";
+import { ContentMetadata } from "../(contents)/content";
 
 type ContentContextType = {
     contents: ContentMetadata[];
     setContents: (contents: ContentMetadata[]) => void;
-    selectedContent: TextContent | null;
-    setSelectedContent: (course: TextContent | null) => void;
+    selectedContent: ContentMetadata | null;
+    setSelectedContent: (course: ContentMetadata | null) => void;
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 const ContentContextProvider = ({ children }: { children: ReactNode }) => {
     const [contents, setContents] = useState<ContentMetadata[]>([]);
-    const [selectedContent, setSelectedContent] = useState<TextContent | null>(null);
+    const [selectedContent, setSelectedContent] = useState<ContentMetadata | null>(null);
 
     return (
         <ContentContext.Provider value={{
