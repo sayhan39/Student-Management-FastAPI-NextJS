@@ -1,6 +1,6 @@
 "use client"
 
-import { Student, useStudent } from "@/app/contexts/student-context";
+import { useStudent } from "@/app/contexts/student-context";
 import DataCell from "../cell/dataCell/dataCell";
 import HeadCell from "../cell/headCell/headCell"
 import { handleTableRowClickEvent, StudentListDetail } from "@/app/(students)/students";

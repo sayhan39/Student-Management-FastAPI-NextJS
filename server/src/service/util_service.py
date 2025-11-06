@@ -12,5 +12,10 @@ class UtilService:
         statement = select(Medium).where(Medium.status == "A")
         results = session.exec(statement).all()
         return results
+    
+    def get_all_class_levels(self, session: Session) -> list[str]:
+        statement = select(ClassLevel.value).where(ClassLevel.status == "A")
+        results = session.exec(statement).all()
+        return results
 
 util_service = UtilService()

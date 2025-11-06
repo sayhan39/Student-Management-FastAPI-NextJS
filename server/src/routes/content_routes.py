@@ -7,9 +7,9 @@ from sqlmodel import Session
 from src.service.content_service import content_service
 from src.models.db_models import User
 from src.db_init import get_session
-from src.models.request_response_models import AddContentResponse
+from src.models.request_response_models import AddContentRequest, AddContentResponse, ContentConstraint, ContentMetadataResponse, TextContentResponse
 from src.utils.base_utils import Role
-from src.utils.user_utils import role_checker
+from src.utils.user_utils import get_current_active_user, role_checker
 from src.routes.base_routes import get_router
 
 
@@ -41,3 +41,46 @@ def download_content(*, session: Session = Depends(get_session), current_user = 
     content = content_service.get_content_by_id(session, content_id)
 
     return Response(content=content.file_data, media_type=content.file_type)
+
+@router.post("/contents/text", response_model=AddContentResponse)
+def create_text_content(
+    *,
+    session: Session = Depends(get_session),
+    request: AddContentRequest,
+    current_user: Annotated[User, admin_dependency],
+):
+    if current_user.role != "A":
+        raise HTTPException(status_code=403, detail="Not authorized to create content")
+    return content_service.add_text_content(session, request, current_user.username)
+
+@router.get("/contents/metadata", response_model=list[ContentMetadataResponse])
+def get_content_list(
+    *,
+    session: Session = Depends(get_session),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    return content_service.get_content_metadata_for_user(session, current_user)
+
+@router.get("/contents/text/{content_id}", response_model=TextContentResponse)
+def get_text_content(
+    *,
+    session: Session = Depends(get_session),
+    content_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    return content_service.get_text_content_by_id(session, content_id)
+
+
+@router.put("/contents/text/{content_id}", response_model=AddContentResponse)
+def update_text_content(
+    *,
+    session: Session = Depends(get_session),
+    content_id: int,
+    request: AddContentRequest,
+    current_user: Annotated[User, admin_dependency],
+):
+    return content_service.update_text_content(
+        session, content_id, request, current_user.username
+    )
+
+

@@ -1,5 +1,5 @@
 import Modal from "@/app/custom-components/modal/modal";
-import { Student, useStudent } from "../../../contexts/student-context";
+import { useStudent } from "../../../contexts/student-context";
 import TableBody from "./body/body"
 import TableHeader from "./header/header"
 
