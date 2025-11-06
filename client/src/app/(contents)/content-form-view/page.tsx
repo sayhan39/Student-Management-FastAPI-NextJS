@@ -7,7 +7,7 @@ import Modal from '../../custom-components/modal/modal';
 import { catchError } from '../../routes/route_utils';
 import { useContent } from '@/app/contexts/content-context';
 import { useAuth } from '@/app/contexts/auth-context';
-import { AddContentResponse, ContentConstraint, TextContent } from '../content';
+import { AddContentResponse, TextContent } from '../content';
 import { Course } from '@/app/(course)/course';
 
 const ContentForm = () => {
@@ -15,16 +15,13 @@ const ContentForm = () => {
     const { selectedContent, setSelectedContent } = useContent();
     const [isEditMode, setIsEditMode] = useState(!!selectedContent);
 
-    const [title, setTitle] = useState(() => selectedContent?.title || '');
-    const [textContent, setTextContent] = useState(() => (selectedContent as TextContent)?.text_content || '');
+    // --- States ---
+    const [title, setTitle] = useState('');
+    const [textContent, setTextContent] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [selectedClassLevels, setSelectedClassLevels] = useState<string[]>([]);
+    const [selectedCourseCodes, setSelectedCourseCodes] = useState<string[]>([]);
     
-    const [selectedClassLevels, setSelectedClassLevels] = useState<string[]>(
-        () => (selectedContent as TextContent)?.class_levels || []
-    );
-    const [selectedCourseCodes, setSelectedCourseCodes] = useState<string[]>(
-        () => (selectedContent as TextContent)?.course_codes || []
-    );
-
     const [isSaveDisabled, setIsSaveDisabled] = useState(true);
 
     const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -33,14 +30,16 @@ const ContentForm = () => {
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
     const [tempSelectedClasses, setTempSelectedClasses] = useState<string[]>([]);
     const [tempSelectedCourses, setTempSelectedCourses] = useState<string[]>([]);
-    const [dataLoading, setDataLoading] = useState(true);
+    
+    const [constraintsLoading, setConstraintsLoading] = useState(true);
+    const [contentLoading, setContentLoading] = useState(false); 
 
-    const [initialState, setInitialState] = useState(() => ({
-        title: selectedContent?.title || '',
-        textContent: (selectedContent as TextContent)?.text_content || '',
-        selectedClassLevels: (selectedContent as TextContent)?.class_levels || [],
-        selectedCourseCodes: (selectedContent as TextContent)?.course_codes || [],
-    }));
+    const [initialState, setInitialState] = useState({
+        title: '',
+        textContent: '',
+        selectedClassLevels: [] as string[],
+        selectedCourseCodes: [] as string[],
+    });
 
     const router = useRouter();
     const { isOpen: isCancelModalOpen, showModal: showCancelModal, hideModal: hideCancelModal, message: cancelMessage, onOk: onCancelConfirm } = useModal();
@@ -48,15 +47,27 @@ const ContentForm = () => {
     const [newContentTitle, setNewContentTitle] = useState('');
 
     const hasChanges = useCallback(() => {
-        return title !== initialState.title || 
-               textContent !== initialState.textContent ||
+        const baseChanges = title !== initialState.title || 
                JSON.stringify(selectedClassLevels.sort()) !== JSON.stringify(initialState.selectedClassLevels.sort()) ||
                JSON.stringify(selectedCourseCodes.sort()) !== JSON.stringify(initialState.selectedCourseCodes.sort());
-    }, [title, textContent, selectedClassLevels, selectedCourseCodes, initialState]);
 
+        // In create mode, a file is a change
+        if (!isEditMode) {
+            return baseChanges || textContent !== initialState.textContent || file !== null;
+        }
+
+        // In edit mode
+        if (selectedContent?.file_type !== 'text/plain') {
+            return baseChanges || file !== null; // File edit
+        } else {
+            return baseChanges || textContent !== initialState.textContent; // Text edit
+        }
+    }, [title, textContent, selectedClassLevels, selectedCourseCodes, initialState, isEditMode, selectedContent, file]);
+
+    // Effect to fetch constraints (courses, classes)
     useEffect(() => {
         const fetchData = async () => {
-            setDataLoading(true);
+            setConstraintsLoading(true);
             try {
                 const [courseResponse, classResponse] = await Promise.all([
                     fetch('/routes/get-all-courses', {
@@ -80,67 +91,205 @@ const ContentForm = () => {
             } catch (error) {
                 catchError(error, 'Error fetching initial data. Reason: ', 'Error fetching initial data.');
             } finally {
-                setDataLoading(false);
+                setConstraintsLoading(false);
             }
         };
         fetchData();
     }, []);
 
+    // Effect to populate the form based on selectedContent
     useEffect(() => {
-        if (!selectedContent) {
-            setIsEditMode(false);
+        setFile(null); // Reset file state on any change
+
+        if (isEditMode && selectedContent) {
+            const fullContent = selectedContent as TextContent;
+            
+            if (fullContent.text_content !== undefined || fullContent.class_levels !== undefined) {
+                setTitle(fullContent.title || '');
+                setTextContent(fullContent.text_content || '');
+                setSelectedClassLevels(fullContent.class_levels || []);
+                setSelectedCourseCodes(fullContent.course_codes || []);
+
+                setInitialState({
+                    title: fullContent.title || '',
+                    textContent: fullContent.text_content || '',
+                    selectedClassLevels: fullContent.class_levels || [],
+                    selectedCourseCodes: fullContent.course_codes || [],
+                });
+
+            } else {
+                setContentLoading(true);
+                const fetchFullContent = async () => {
+                    try {
+                        if (selectedContent.file_type === 'text/plain') {
+                            const response = await fetch(`/routes/get-text-content/${selectedContent.id}`);
+                            if (!response.ok) {
+                                const errorData = await response.json();
+                                throw new Error(errorData.detail || 'Failed to fetch content details');
+                            }
+                            const fetchedContent: TextContent = await response.json();
+
+                            setTitle(fetchedContent.title || '');
+                            setTextContent(fetchedContent.text_content || '');
+setSelectedClassLevels(fetchedContent.class_levels || []);
+                            setSelectedCourseCodes(fetchedContent.course_codes || []);
+
+                            setInitialState({
+                                title: fetchedContent.title || '',
+                                textContent: fetchedContent.text_content || '',
+                                selectedClassLevels: fetchedContent.class_levels || [],
+                                selectedCourseCodes: fetchedContent.course_codes || [],
+                            });
+
+                        } else {
+                            // For non-text, just populate what we have
+                            setTitle(selectedContent.title || '');
+                            setSelectedClassLevels([]);
+                            setSelectedCourseCodes([]);
+                            
+                            setInitialState({
+                                title: selectedContent.title || '',
+                                textContent: '',
+                                selectedClassLevels: [],
+                                selectedCourseCodes: [],
+                            });
+                        }
+                    } catch (error) {
+                        catchError(error, "Error fetching content details: ", "Unknown error fetching content");
+                    } finally {
+                        setContentLoading(false);
+                    }
+                };
+                fetchFullContent();
+            }
+        } else {
+            // "Create New" mode
             setTitle('');
             setTextContent('');
             setSelectedClassLevels([]);
             setSelectedCourseCodes([]);
-            setInitialState({ title: '', textContent: '', selectedClassLevels: [], selectedCourseCodes: [] });
+            setInitialState({
+                title: '',
+                textContent: '',
+                selectedClassLevels: [],
+                selectedCourseCodes: [],
+            });
+            setIsEditMode(false); // Ensure edit mode is off
         }
-    }, [selectedContent]);
+    }, [isEditMode, selectedContent]); 
 
+    
     useEffect(() => {
-        setIsSaveDisabled(!hasChanges() || !title.trim());
-    }, [title, textContent, selectedClassLevels, selectedCourseCodes, hasChanges]);
+        // Disable save if no changes OR if no title
+        const noChanges = !hasChanges();
+        const noTitle = !title.trim();
+        
+        // Disable if creating a file and no file is selected
+        const creatingFileWithoutFile = !isEditMode && file === null && textContent.trim() === '';
+
+        setIsSaveDisabled(noChanges || noTitle || creatingFileWithoutFile);
+        
+    }, [title, textContent, selectedClassLevels, selectedCourseCodes, hasChanges, file, initialState, isEditMode]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const contentData = { 
-            title: title, 
-            text_content: textContent,
-            class_levels: selectedClassLevels, // Send selected classes
-            course_codes: selectedCourseCodes, // Send selected courses
-            file_type: "text",
-            author: null,
-        };
-        
-        const url = isEditMode
-            ? `/routes/update-text-content/${selectedContent?.id}`
-            : '/routes/create-text-content';
-        
-        const method = isEditMode ? 'PUT' : 'POST';
+        // Determine if this is a text operation or a file operation
+        const isTextContentOperation = (isEditMode && selectedContent?.file_type === 'text/plain') || (!isEditMode && !file);
 
-        try {
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(contentData),
-            });
+        if (isTextContentOperation) {
+            // --- 1. HANDLE TEXT CONTENT (CREATE/UPDATE) ---
+            const contentData = { 
+                title: title, 
+                text_content: textContent,
+                class_levels: selectedClassLevels,
+                course_codes: selectedCourseCodes,
+                file_type: "text/plain",
+                author: null,
+            };
+            
+            const url = isEditMode
+                ? `/routes/update-text-content/${selectedContent?.id}`
+                : '/routes/create-text-content';
+            const method = isEditMode ? 'PUT' : 'POST';
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || `Failed to ${isEditMode ? 'update' : 'add'} content`);
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(contentData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Failed to ${isEditMode ? 'update' : 'add'} content`);
+                }
+
+                if (isEditMode) {
+                    setSelectedContent(null);
+                    router.push('/contents');
+                } else {
+                    const newContentResponse: AddContentResponse = await response.json();
+                    setNewContentTitle(newContentResponse.content.title || '');
+                    setSuccessModalOpen(true);
+                }
+            } catch (error) {
+                catchError(error, `Error ${isEditMode ? 'updating' : 'adding'} content: `, `Unknown error while ${isEditMode ? 'updating' : 'adding'} content`);
             }
 
+        } else {
+            // --- 2. HANDLE FILE CONTENT (CREATE/UPDATE) ---
+            const formData = new FormData();
+            formData.append('title', title);
+            selectedClassLevels.forEach(level => formData.append('class_levels', level));
+            selectedCourseCodes.forEach(code => formData.append('course_codes', code));
+
+            let url = '';
+            let method = '';
+            
             if (isEditMode) {
-                setSelectedContent(null);
-                router.push('/contents');
+                // --- UPDATE (PUT) ---
+                url = `/routes/update-file-content/${selectedContent?.id}`;
+                method = 'PUT';
+                if (file) { // Only append file if a new one was selected
+                    formData.append('file', file);
+                }
             } else {
-                const newContentResponse: AddContentResponse = await response.json();
-                setNewContentTitle(newContentResponse.content.title || '');
-                setSuccessModalOpen(true);
+                // --- CREATE (POST) ---
+                url = `/routes/create-file-content`;
+                method = 'POST';
+                if (file) { // File is required for creation
+                    formData.append('file', file);
+                } else {
+                    // This should be caught by isSaveDisabled, but as a safeguard
+                    showCancelModal("Please select a file to create new content.", hideCancelModal);
+                    return;
+                }
             }
-        } catch (error) {
-            catchError(error, `Error ${isEditMode ? 'updating' : 'adding'} content: `, `Unknown error while ${isEditMode ? 'updating' : 'adding'} content`);
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Failed to ${method === 'POST' ? 'create' : 'update'} file content`);
+                }
+
+                if (isEditMode) {
+                    setSelectedContent(null);
+                    router.push('/contents');
+                } else {
+                    const newContentResponse: AddContentResponse = await response.json();
+                    setNewContentTitle(newContentResponse.content.title || '');
+                    setSuccessModalOpen(true);
+                }
+
+            } catch (error) {
+                 catchError(error, `Error ${method === 'POST' ? 'creating' : 'updating'} file content: `, `Unknown error while ${method === 'POST' ? 'creating' : 'updating'} file content`);
+            }
         }
     };
 
@@ -162,11 +311,8 @@ const ContentForm = () => {
 
     const handleAddAnother = () => {
         setSuccessModalOpen(false);
-        setTitle('');
-        setTextContent('');
-        setSelectedClassLevels([]);
-        setSelectedCourseCodes([]);
-        setInitialState({ title: '', textContent: '', selectedClassLevels: [], selectedCourseCodes: [] });
+        setSelectedContent(null);
+        setIsEditMode(false);
     };
 
     const handleReturnToList = () => {
@@ -178,7 +324,6 @@ const ContentForm = () => {
     // --- Modal Handlers ---
 
     const handleOpenClassModal = () => {
-        // This function is now guaranteed to read the correct state
         setTempSelectedClasses([...selectedClassLevels]);
         setIsClassModalOpen(true);
     };
@@ -189,7 +334,6 @@ const ContentForm = () => {
     };
 
     const handleClassModalCancel = () => {
-        // setTempSelectedClasses([]); // This line is not necessary and can be removed
         setIsClassModalOpen(false);
     };
 
@@ -202,7 +346,6 @@ const ContentForm = () => {
     };
 
     const handleOpenCourseModal = () => {
-        // This function is now guaranteed to read the correct state
         setTempSelectedCourses([...selectedCourseCodes]);
         setIsCourseModalOpen(true);
     };
@@ -213,7 +356,6 @@ const ContentForm = () => {
     };
 
     const handleCourseModalCancel = () => {
-        // setTempSelectedCourses([]); // This line is not necessary and can be removed
         setIsCourseModalOpen(false);
     };
 
@@ -227,7 +369,7 @@ const ContentForm = () => {
 
     // --- Loading/Permission Checks ---
 
-    if (authLoading || dataLoading) {
+    if (authLoading || constraintsLoading || contentLoading) {
         return <p className="p-4 text-center">Loading...</p>;
     }
 
@@ -241,12 +383,13 @@ const ContentForm = () => {
 
     // --- Render ---
 
+    // --- Determine which content input to show ---
+    const showFileInput = (isEditMode && selectedContent?.file_type !== 'text/plain') || (!isEditMode && file !== null);
+    
     return (
         <div className="p-4 max-w-2xl mx-auto">
-            {/* Cancel Confirmation Modal */}
+            {/* ... Modals ... */}
             <Modal isOpen={isCancelModalOpen} onOk={onCancelConfirm || undefined} onClose={hideCancelModal} message={cancelMessage} showCancelButton={true} />
-            
-            {/* Add Success Modal */}
             <Modal
                 isOpen={isSuccessModalOpen}
                 message={`Successfully added "${newContentTitle}". Would you like to add another?`}
@@ -256,8 +399,6 @@ const ContentForm = () => {
                 okText="Yes, Add Another"
                 cancelText="No, View List"
             />
-
-            {/* Class Selection Modal */}
             <Modal
                 isOpen={isClassModalOpen}
                 onOk={handleClassModalOk}
@@ -280,8 +421,6 @@ const ContentForm = () => {
                     )) : <p>No classes found.</p>}
                 </div>
             </Modal>
-
-            {/* Course Selection Modal */}
             <Modal
                 isOpen={isCourseModalOpen}
                 onOk={handleCourseModalOk}
@@ -304,6 +443,7 @@ const ContentForm = () => {
                     )) : <p>No courses found.</p>}
                 </div>
             </Modal>
+
 
             {/* Main Form */}
             <h1 className="text-xl font-bold mb-4">{isEditMode ? 'Edit Content' : 'Add New Content'}</h1>
@@ -338,14 +478,51 @@ const ContentForm = () => {
                 </div>
 
                 <div>
-                    <label htmlFor="textContent" className="block text-sm font-medium">Content</label>
-                    <textarea
-                        id="textContent"
-                        value={textContent}
-                        onChange={(e) => setTextContent(e.target.value)}
-                        rows={15}
-                        className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface"
-                    />
+                    <label htmlFor="content" className="block text-sm font-medium">Content</label>
+                    
+                    {/* --- Logic for swapping input type --- */}
+                    { (isEditMode && selectedContent?.file_type !== 'text/plain') ? (
+                        // 1. Editing an existing non-text file
+                        <input
+                            id="contentFile"
+                            type="file"
+                            onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                            className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-textprimary file:font-bold hover:file:bg-primary/90"
+                        />
+                    ) : (
+                        // 2. Editing text OR Creating new content
+                        <>
+                            <textarea
+                                id="textContent"
+                                value={textContent}
+                                onChange={(e) => {
+                                    setTextContent(e.target.value);
+                                    if(e.target.value.trim() !== '') setFile(null); // Clear file if user types in text
+                                }}
+                                rows={15}
+                                className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface"
+                                disabled={!isEditMode && file !== null} // Disable if creating and file is selected
+                            />
+                            
+                            {/* --- Show file input only when creating --- */}
+                            {!isEditMode && (
+                                <>
+                                <p className="text-sm text-textsecondary text-center my-2">OR</p>
+                                <input
+                                    id="contentFile"
+                                    type="file"
+                                    onChange={(e) => {
+                                        const selectedFile = e.target.files ? e.target.files[0] : null;
+                                        setFile(selectedFile);
+                                        if (selectedFile) setTextContent(''); // Clear text if user selects file
+                                    }}
+                                    className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-textprimary file:font-bold hover:file:bg-primary/90"
+                                    disabled={!isEditMode && textContent.trim() !== ''} // Disable if creating and text is typed
+                                />
+                                </>
+                            )}
+                        </>
+                    )}
                 </div>
                 <div className="flex justify-end gap-4">
                     <button type="button" onClick={handleCancelClick} className="py-2 px-4 bg-destructive hover:bg-destructive/90 rounded-lg shadow-md text-textprimary font-bold">
