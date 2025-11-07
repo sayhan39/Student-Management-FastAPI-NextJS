@@ -13,16 +13,14 @@ const CourseForm = () => {
     const { role, loading: authLoading } = useAuth();
     const { selectedCourse, setSelectedCourse } = useCourse();
     const [isEditMode, setIsEditMode] = useState(false);
-    
-    // Form state
+
     const [id, setId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [courseCode, setCourseCode] = useState('');
     const [description, setDescription] = useState('');
     const [credits, setCredits] = useState(0);
     const [isSaveDisabled, setIsSaveDisabled] = useState(true);
-    
-    // State to track initial values for changes
+
     const [initialState, setInitialState] = useState({
         name: '',
         courseCode: '',
@@ -53,7 +51,6 @@ const CourseForm = () => {
                 credits !== initialState.credits
             );
         }
-        // In create mode, any input is a change from the initial empty state.
         return name !== '' || courseCode !== '' || description !== '' || credits !== 0;
     }, [courseCode, credits, description, initialState, isEditMode, name]);
 
@@ -87,10 +84,10 @@ const CourseForm = () => {
             catchError(error, `Error ${isEditMode ? 'updating' : 'adding'} course: `, `Unknown error while ${isEditMode ? 'updating' : 'adding'} course`);
         }
     };
-    
+
     const handleCancelClick = () => {
         const navigateAway = () => {
-            setSelectedCourse(null); // Clear context to ensure clean state
+            setSelectedCourse(null);
             router.push('/course-list');
         };
 
@@ -125,7 +122,6 @@ const CourseForm = () => {
             setDescription(description || '');
             setCredits(credits || 0);
 
-            // Set initial state for comparison
             setInitialState({
                 name: name,
                 courseCode: course_code,
@@ -137,7 +133,7 @@ const CourseForm = () => {
             resetFormForCreate();
         }
     }, [selectedCourse]);
-    
+
     useEffect(() => {
         setIsSaveDisabled(!hasChanges());
     }, [courseCode, credits, description, hasChanges, initialState, name]);

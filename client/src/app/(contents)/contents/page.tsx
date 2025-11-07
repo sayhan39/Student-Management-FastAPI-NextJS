@@ -27,7 +27,6 @@ const ContentList = () => {
                     throw new Error(errorData.detail || "Failed to fetch contents");
                 }
                 const data: ContentMetadata[] = await response.json();
-                // const textContents = data.filter(c => c.file_type === 'text/plain');
                 setContents(data);
             } catch (error: unknown) {
                 catchError(error, "Error fetching contents: ", "Unknown error while fetching contents");
@@ -61,7 +60,7 @@ const ContentList = () => {
             if (!response.ok) {
                 throw new Error('Failed to download file');
             }
-            
+
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -104,7 +103,6 @@ const ContentList = () => {
                         key={content.id}
                         className="flex justify-between items-center p-4 bg-background rounded-lg shadow-md"
                     >
-                        {/* Info section: Clicks to view *only* if text/plain */}
                         <div 
                             onClick={() => handleContentClick(content.id, content.file_type)}
                             className={`flex flex-col ${content.file_type === 'text/plain' ? 'cursor-pointer hover:bg-background/80' : 'cursor-default'} transition duration-150 ease-in-out p-1 rounded`}
@@ -121,7 +119,6 @@ const ContentList = () => {
                             </p>
                         </div>
 
-                        {/* Actions section with Edit and Download buttons */}
                         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                             {content.file_type !== 'text/plain' && (
                                 <button
@@ -131,9 +128,8 @@ const ContentList = () => {
                                     Download
                                 </button>
                             )}
-                            
+
                             {role === "A" && (
-                                // This button calls the new handleEdit function
                                 <button
                                     onClick={() => handleEdit(content)}
                                     className="py-1 px-3 bg-yellow-500 hover:bg-yellow-600 rounded-md shadow-sm text-white text-sm font-bold focus:outline-none focus:ring-1 focus:ring-yellow-400"
