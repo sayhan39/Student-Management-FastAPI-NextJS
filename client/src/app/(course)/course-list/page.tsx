@@ -23,7 +23,7 @@ const CourseList = () => {
         setSelectedCourse(course);
         router.push('/course-form');
     };
-    
+
     const handleDeleteClick = (course: Course) => {
         setCourseToDelete(course);
         showModal(`Are you sure about deleting ${course.course_code}?`);
@@ -43,7 +43,6 @@ const CourseList = () => {
                 throw new Error(errorData.detail || 'Failed to delete course');
             }
 
-            // Remove the course from the local state instead of re-fetching
             setCourses(courses.filter(course => course.id !== courseToDelete.id));
         } catch (error) {
             catchError(error, "Error deleting course: ", "Unknown error while deleting course");

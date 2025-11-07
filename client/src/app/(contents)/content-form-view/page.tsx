@@ -15,13 +15,12 @@ const ContentForm = () => {
     const { selectedContent, setSelectedContent } = useContent();
     const [isEditMode, setIsEditMode] = useState(!!selectedContent);
 
-    // --- States ---
     const [title, setTitle] = useState('');
     const [textContent, setTextContent] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [selectedClassLevels, setSelectedClassLevels] = useState<string[]>([]);
     const [selectedCourseCodes, setSelectedCourseCodes] = useState<string[]>([]);
-    
+
     const [isSaveDisabled, setIsSaveDisabled] = useState(true);
 
     const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -30,7 +29,7 @@ const ContentForm = () => {
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
     const [tempSelectedClasses, setTempSelectedClasses] = useState<string[]>([]);
     const [tempSelectedCourses, setTempSelectedCourses] = useState<string[]>([]);
-    
+
     const [constraintsLoading, setConstraintsLoading] = useState(true);
     const [contentLoading, setContentLoading] = useState(false); 
 
@@ -51,20 +50,17 @@ const ContentForm = () => {
                JSON.stringify(selectedClassLevels.sort()) !== JSON.stringify(initialState.selectedClassLevels.sort()) ||
                JSON.stringify(selectedCourseCodes.sort()) !== JSON.stringify(initialState.selectedCourseCodes.sort());
 
-        // In create mode, a file is a change
         if (!isEditMode) {
             return baseChanges || textContent !== initialState.textContent || file !== null;
         }
 
-        // In edit mode
         if (selectedContent?.file_type !== 'text/plain') {
-            return baseChanges || file !== null; // File edit
+            return baseChanges || file !== null;
         } else {
-            return baseChanges || textContent !== initialState.textContent; // Text edit
+            return baseChanges || textContent !== initialState.textContent;
         }
     }, [title, textContent, selectedClassLevels, selectedCourseCodes, initialState, isEditMode, selectedContent, file]);
 
-    // Effect to fetch constraints (courses, classes)
     useEffect(() => {
         const fetchData = async () => {
             setConstraintsLoading(true);
@@ -97,13 +93,12 @@ const ContentForm = () => {
         fetchData();
     }, []);
 
-    // Effect to populate the form based on selectedContent
     useEffect(() => {
-        setFile(null); // Reset file state on any change
+        setFile(null);
 
         if (isEditMode && selectedContent) {
             const fullContent = selectedContent as TextContent;
-            
+
             if (fullContent.text_content !== undefined || fullContent.class_levels !== undefined) {
                 setTitle(fullContent.title || '');
                 setTextContent(fullContent.text_content || '');
@@ -131,7 +126,7 @@ const ContentForm = () => {
 
                             setTitle(fetchedContent.title || '');
                             setTextContent(fetchedContent.text_content || '');
-setSelectedClassLevels(fetchedContent.class_levels || []);
+                            setSelectedClassLevels(fetchedContent.class_levels || []);
                             setSelectedCourseCodes(fetchedContent.course_codes || []);
 
                             setInitialState({
@@ -142,11 +137,10 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                             });
 
                         } else {
-                            // For non-text, just populate what we have
                             setTitle(selectedContent.title || '');
                             setSelectedClassLevels([]);
                             setSelectedCourseCodes([]);
-                            
+
                             setInitialState({
                                 title: selectedContent.title || '',
                                 textContent: '',
@@ -163,7 +157,6 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                 fetchFullContent();
             }
         } else {
-            // "Create New" mode
             setTitle('');
             setTextContent('');
             setSelectedClassLevels([]);
@@ -174,31 +167,26 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                 selectedClassLevels: [],
                 selectedCourseCodes: [],
             });
-            setIsEditMode(false); // Ensure edit mode is off
+            setIsEditMode(false);
         }
     }, [isEditMode, selectedContent]); 
 
-    
     useEffect(() => {
-        // Disable save if no changes OR if no title
         const noChanges = !hasChanges();
         const noTitle = !title.trim();
-        
-        // Disable if creating a file and no file is selected
+
         const creatingFileWithoutFile = !isEditMode && file === null && textContent.trim() === '';
 
         setIsSaveDisabled(noChanges || noTitle || creatingFileWithoutFile);
-        
+
     }, [title, textContent, selectedClassLevels, selectedCourseCodes, hasChanges, file, initialState, isEditMode]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Determine if this is a text operation or a file operation
         const isTextContentOperation = (isEditMode && selectedContent?.file_type === 'text/plain') || (!isEditMode && !file);
 
         if (isTextContentOperation) {
-            // --- 1. HANDLE TEXT CONTENT (CREATE/UPDATE) ---
             const contentData = { 
                 title: title, 
                 text_content: textContent,
@@ -207,7 +195,7 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                 file_type: "text/plain",
                 author: null,
             };
-            
+
             const url = isEditMode
                 ? `/routes/update-text-content/${selectedContent?.id}`
                 : '/routes/create-text-content';
@@ -238,7 +226,6 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
             }
 
         } else {
-            // --- 2. HANDLE FILE CONTENT (CREATE/UPDATE) ---
             const formData = new FormData();
             formData.append('title', title);
             selectedClassLevels.forEach(level => formData.append('class_levels', level));
@@ -246,22 +233,19 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
 
             let url = '';
             let method = '';
-            
+
             if (isEditMode) {
-                // --- UPDATE (PUT) ---
                 url = `/routes/update-file-content/${selectedContent?.id}`;
                 method = 'PUT';
-                if (file) { // Only append file if a new one was selected
+                if (file) {
                     formData.append('file', file);
                 }
             } else {
-                // --- CREATE (POST) ---
                 url = `/routes/create-file-content`;
                 method = 'POST';
-                if (file) { // File is required for creation
+                if (file) {
                     formData.append('file', file);
                 } else {
-                    // This should be caught by isSaveDisabled, but as a safeguard
                     showCancelModal("Please select a file to create new content.", hideCancelModal);
                     return;
                 }
@@ -321,8 +305,6 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
         router.push('/contents');
     };
 
-    // --- Modal Handlers ---
-
     const handleOpenClassModal = () => {
         setTempSelectedClasses([...selectedClassLevels]);
         setIsClassModalOpen(true);
@@ -367,8 +349,6 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
         );
     };
 
-    // --- Loading/Permission Checks ---
-
     if (authLoading || constraintsLoading || contentLoading) {
         return <p className="p-4 text-center">Loading...</p>;
     }
@@ -381,14 +361,10 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
         );
     }
 
-    // --- Render ---
-
-    // --- Determine which content input to show ---
     const showFileInput = (isEditMode && selectedContent?.file_type !== 'text/plain') || (!isEditMode && file !== null);
-    
+
     return (
         <div className="p-4 max-w-2xl mx-auto">
-            {/* ... Modals ... */}
             <Modal isOpen={isCancelModalOpen} onOk={onCancelConfirm || undefined} onClose={hideCancelModal} message={cancelMessage} showCancelButton={true} />
             <Modal
                 isOpen={isSuccessModalOpen}
@@ -444,8 +420,6 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                 </div>
             </Modal>
 
-
-            {/* Main Form */}
             <h1 className="text-xl font-bold mb-4">{isEditMode ? 'Edit Content' : 'Add New Content'}</h1>
             <form onSubmit={handleSave} className="space-y-4">
                 <div>
@@ -459,8 +433,7 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                         className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface"
                     />
                 </div>
-                
-                {/* --- Associations --- */}
+
                 <div className="space-y-2">
                     <h3 className="text-sm font-medium">Associations</h3>
                     <div className="flex gap-4">
@@ -479,10 +452,8 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
 
                 <div>
                     <label htmlFor="content" className="block text-sm font-medium">Content</label>
-                    
-                    {/* --- Logic for swapping input type --- */}
+
                     { (isEditMode && selectedContent?.file_type !== 'text/plain') ? (
-                        // 1. Editing an existing non-text file
                         <input
                             id="contentFile"
                             type="file"
@@ -490,21 +461,19 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                             className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-textprimary file:font-bold hover:file:bg-primary/90"
                         />
                     ) : (
-                        // 2. Editing text OR Creating new content
                         <>
                             <textarea
                                 id="textContent"
                                 value={textContent}
                                 onChange={(e) => {
                                     setTextContent(e.target.value);
-                                    if(e.target.value.trim() !== '') setFile(null); // Clear file if user types in text
+                                    if(e.target.value.trim() !== '') setFile(null);
                                 }}
                                 rows={15}
                                 className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface"
-                                disabled={!isEditMode && file !== null} // Disable if creating and file is selected
+                                disabled={!isEditMode && file !== null}
                             />
-                            
-                            {/* --- Show file input only when creating --- */}
+
                             {!isEditMode && (
                                 <>
                                 <p className="text-sm text-textsecondary text-center my-2">OR</p>
@@ -514,10 +483,10 @@ setSelectedClassLevels(fetchedContent.class_levels || []);
                                     onChange={(e) => {
                                         const selectedFile = e.target.files ? e.target.files[0] : null;
                                         setFile(selectedFile);
-                                        if (selectedFile) setTextContent(''); // Clear text if user selects file
+                                        if (selectedFile) setTextContent('');
                                     }}
                                     className="mt-1 block w-full p-2 border-subtle border-2 rounded-md bg-surface file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-textprimary file:font-bold hover:file:bg-primary/90"
-                                    disabled={!isEditMode && textContent.trim() !== ''} // Disable if creating and text is typed
+                                    disabled={!isEditMode && textContent.trim() !== ''}
                                 />
                                 </>
                             )}
