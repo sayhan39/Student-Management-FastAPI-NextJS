@@ -1,4 +1,4 @@
-# FastAPI + Next.js Monorepo
+# Student and Class Management application using FastAPI + Next.js
 
 This project is a monorepo containing a FastAPI backend and a Next.js frontend.
 
